@@ -32,14 +32,13 @@ def print_gcc_msg(err_msg):
             print("{}WARNING: [line {}]{}\n{}".format(bcolors.WARNING, line, bcolors.ENDC, value), file=sys.stderr)
 
 def init_args():
-    params = "-std=c++14 -Wall -Wextra -pedantic -O2 -Wshadow \
-              -Wformat=2 -Wfloat-equal -Wconversion -Wlogical-op \
-              -Wshift-overflow=2 -Wduplicated-cond -Wcast-qual \
-              -Wcast-align"
+    params = ['-std=c++14', '-Wall', '-Wextra', '-pedantic', '-O2', '-Wshadow',
+              '-Wformat=2', '-Wfloat-equal', '-Wconversion', '-Wlogical-op',
+              '-Wshift-overflow=2', '-Wduplicated-cond', '-Wcast-qual', '-Wcast-align' ]
 
-    extra_params = "-D_GLIBCXX_DEBUG -D_GLIBCXX_DEBUG_PEDANTIC -D_FORTIFY_SOURCE=2 \
-                    -fsanitize=address -fsanitize=undefined -fno-sanitize-recover -fstack-protector \
-                    -Wstack-usage=100000000"
+    extra_params = ['-D_GLIBCXX_DEBUG', '-D_GLIBCXX_DEBUG_PEDANTIC', '-D_FORTIFY_SOURCE=2',
+                    '-fsanitize=address', '-fsanitize=undefined', '-fno-sanitize-recover', '-fstack-protector'
+                    '-Wstack-usage=100000000']
 
     parser = argparse.ArgumentParser(description='My example explanation')
 
@@ -51,7 +50,7 @@ def init_args():
     args = parser.parse_args(sys.argv[1:])
 
     if args.d == True:
-        params += ' ' + extra_params
+        params += extra_params
 
     out_file = hidden_dir_name + '/' + ('.').join(args.cpp.split('.')[:-1])
 
