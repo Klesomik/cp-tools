@@ -1,48 +1,103 @@
-#!/bin/bash
+#!/usr/bin/python3
 
-cpp_file=$1
-out_file=${cpp_file%.*}
+import os
+import sys
+import argparse
+import subprocess
+import json
 
-exit_cpm()
-{
-    printf "\n\e[32m╚══════════════════════════════════════════════════════════════╝\e[0m\n" >&2
+class bcolors:
+    HEADER    = '\033[95m'
+    OKBLUE    = '\033[94m'
+    OKGREEN   = '\033[32m'
+    WARNING   = '\033[93m'
+    FAIL      = '\033[91m'
+    ENDC      = '\033[0m'
+    BOLD      = '\033[1m'
+    UNDERLINE = '\033[4m'
 
-    rm $out_file
-    rm errors.txt
+hidden_dir_name = '.cpmcache'
 
-    exit 0
-}
+def print_gcc_msg(err_msg):
+    message = json.loads(err_msg)
 
-trap exit_cpm SIGINT
+    for msg in message:
+        if msg["kind"] == "error":
+            line = msg["locations"][0]["caret"]["line"]
+            value = msg["message"]
+            print("{}ERROR: [line {}]{}\n{}".format(bcolors.FAIL, line, bcolors.ENDC, value), file=sys.stderr)
+        elif msg["kind"] == "warning":
+            line = msg["locations"][0]["start"]["line"]
+            value = msg["message"]
+            print("{}WARNING: [line {}]{}\n{}".format(bcolors.WARNING, line, bcolors.ENDC, value), file=sys.stderr)
 
-params="-std=c++14 -Wall -Wextra -pedantic -O2 -Wshadow 
--Wformat=2 -Wfloat-equal -Wconversion -Wlogical-op 
--Wshift-overflow=2 -Wduplicated-cond -Wcast-qual 
--Wcast-align"
+def init_args():
+    params = "-std=c++14 -Wall -Wextra -pedantic -O2 -Wshadow \
+              -Wformat=2 -Wfloat-equal -Wconversion -Wlogical-op \
+              -Wshift-overflow=2 -Wduplicated-cond -Wcast-qual \
+              -Wcast-align"
 
-if g++ $cpp_file $params -fdiagnostics-format=json -o $out_file 2> errors.txt; then
-    #printf "\e[32m╔══════════════════════════════════════════════════════════════╗\e[0m\n" >&2
-    parser_gcc.py < errors.txt >&2
-    #printf "\n" >&2
-    #printf "\e[32m╚══════════════════════════════════════════════════════════════╝\e[0m\n" >&2
-    printf "\e[32m╔══════════════════════════════════════════════════════════════╗\e[0m\n" >&2
-    START=$(date +%s.%N)
-    ./$out_file
-    END=$(date +%s.%N)
-    DIFF=$(echo "$END - $START" | bc)
-    printf "\n\e[32m╚══════════════════════════════════════════════════════════════╝\e[0m\n" >&2
-    printf "\e[32mExecution time: %s s\e[0m\n" $DIFF >&2
-    rm $out_file
-    # make dit .cpmcache and not rm $out_file
-else
-    parser_gcc.py < errors.txt
-fi
+    extra_params = "-D_GLIBCXX_DEBUG -D_GLIBCXX_DEBUG_PEDANTIC -D_FORTIFY_SOURCE=2 \
+                    -fsanitize=address -fsanitize=undefined -fno-sanitize-recover -fstack-protector \
+                    -Wstack-usage=100000000"
 
-rm errors.txt
+    parser = argparse.ArgumentParser(description='My example explanation')
 
-exit 0
+    parser.add_argument('cpp', type=str, help='Name of cpp source file')
+    parser.add_argument('-d', action='store_true', help='Enable debug mode')
+    parser.add_argument('-m', action='store_true', help='Show memory usage')
+    parser.add_argument('-t', action='store_true', help='Show time usage')
 
-# -D_GLIBCXX_DEBUG -D_GLIBCXX_DEBUG_PEDANTIC 
-# -D_FORTIFY_SOURCE=2 -fsanitize=address 
-# -fsanitize=undefined -fno-sanitize-recover 
-# -fstack-protector -Wstack-usage=100000000
+    args = parser.parse_args(sys.argv[1:])
+
+    if args.d == True:
+        params += ' ' + extra_params
+
+    out_file = hidden_dir_name + '/' + ('.').join(args.cpp.split('.')[:-1])
+
+    return (args.cpp, out_file, params, args.m, args.t)
+
+def check_source(cpp_file):
+    if not os.path.isfile(cpp_file):
+        print('Can not open the file {}'.format(cpp_file), file=sys.stderr)
+        return False
+
+    return True
+
+def compile(cpp_file, out_file, params):
+    os.makedirs(hidden_dir_name, exist_ok=True)
+
+    p = subprocess.run(
+        ['g++', '-fdiagnostics-format=json', cpp_file, '-o', out_file],
+        stderr=subprocess.PIPE)
+
+    print_gcc_msg(p.stderr.decode("utf-8"))
+
+    return p.returncode == 0
+
+def execute(out_file):
+    p = subprocess.run(['./' + out_file])
+
+    return p.returncode == 0
+
+def main():
+    cpp_file, out_file, params, mem_flag, time_flag = init_args()
+
+    if not check_source(cpp_file):
+        return
+
+    if not compile(cpp_file, out_file, params):
+        return
+
+    print("{}╔══════════════════════════════════════════════════════════════╗{}".format(bcolors.OKGREEN, bcolors.ENDC), file=sys.stderr)
+
+    sucseed = execute(out_file)
+
+    print("", file=sys.stderr)
+
+    print("{}╚══════════════════════════════════════════════════════════════╝{}".format(bcolors.OKGREEN, bcolors.ENDC), file=sys.stderr)
+
+    #printf "\e[32mExecution time: %s s\e[0m\n" $DIFF >&2
+
+if __name__ == "__main__":
+    main()
