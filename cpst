@@ -1,0 +1,28 @@
+#!/bin/bash
+
+sol_1=$1
+out_1=${sol_1%.*}
+
+sol_2=$2
+out_2=${sol_2%.*}
+
+gen_source=$3
+gen=${gen_source%.*}
+
+g++ -std=c++17 $sol_1 -o $out_1
+g++ -std=c++17 $sol_2 -o $out_2
+g++ -std=c++17 $gen_source -o $gen
+
+for (( i=1; i <= 100; i++ ))
+do
+    ./$gen > input.txt
+    ./$sol_1 > ans1.txt < input.txt
+    ./$sol_2 > ans2.txt < input.txt
+    diff ans1.txt ans2.txt || break
+done
+
+rm $out_1
+rm $out_2
+rm $gen
+
+exit 0

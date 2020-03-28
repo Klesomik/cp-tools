@@ -1,0 +1,48 @@
+#!/bin/bash
+
+cpp_file=$1
+out_file=${cpp_file%.*}
+
+exit_cpm()
+{
+    printf "\n\e[32m╚══════════════════════════════════════════════════════════════╝\e[0m\n" >&2
+
+    rm $out_file
+    rm errors.txt
+
+    exit 0
+}
+
+trap exit_cpm SIGINT
+
+params="-std=c++14 -Wall -Wextra -pedantic -O2 -Wshadow 
+-Wformat=2 -Wfloat-equal -Wconversion -Wlogical-op 
+-Wshift-overflow=2 -Wduplicated-cond -Wcast-qual 
+-Wcast-align"
+
+if g++ $cpp_file $params -fdiagnostics-format=json -o $out_file 2> errors.txt; then
+    #printf "\e[32m╔══════════════════════════════════════════════════════════════╗\e[0m\n" >&2
+    parser_gcc.py < errors.txt >&2
+    #printf "\n" >&2
+    #printf "\e[32m╚══════════════════════════════════════════════════════════════╝\e[0m\n" >&2
+    printf "\e[32m╔══════════════════════════════════════════════════════════════╗\e[0m\n" >&2
+    START=$(date +%s.%N)
+    ./$out_file
+    END=$(date +%s.%N)
+    DIFF=$(echo "$END - $START" | bc)
+    printf "\n\e[32m╚══════════════════════════════════════════════════════════════╝\e[0m\n" >&2
+    printf "\e[32mExecution time: %s s\e[0m\n" $DIFF >&2
+    rm $out_file
+    # make dit .cpmcache and not rm $out_file
+else
+    parser_gcc.py < errors.txt
+fi
+
+rm errors.txt
+
+exit 0
+
+# -D_GLIBCXX_DEBUG -D_GLIBCXX_DEBUG_PEDANTIC 
+# -D_FORTIFY_SOURCE=2 -fsanitize=address 
+# -fsanitize=undefined -fno-sanitize-recover 
+# -fstack-protector -Wstack-usage=100000000
