@@ -6,6 +6,8 @@ import argparse
 import subprocess
 import json
 
+from termcolor import cprint
+
 class bcolors:
     HEADER    = '\033[95m'
     OKBLUE    = '\033[94m'
@@ -18,6 +20,9 @@ class bcolors:
 
 hidden_dir_name = '.cpmcache'
 
+def print_info(msg, color=''):
+    cprint(msg, color, file=sys.stderr)
+
 def print_gcc_msg(err_msg):
     message = json.loads(err_msg)
 
@@ -25,11 +30,11 @@ def print_gcc_msg(err_msg):
         if msg["kind"] == "error":
             line = msg["locations"][0]["caret"]["line"]
             value = msg["message"]
-            print("{}ERROR: [line {}]{}\n{}".format(bcolors.FAIL, line, bcolors.ENDC, value), file=sys.stderr)
+            print_info("ERROR: [line {}]\n{}".format(line, value), 'red')
         elif msg["kind"] == "warning":
             line = msg["locations"][0]["start"]["line"]
             value = msg["message"]
-            print("{}WARNING: [line {}]{}\n{}".format(bcolors.WARNING, line, bcolors.ENDC, value), file=sys.stderr)
+            print_info("WARNING: [line {}]\n{}".format(line, value), 'yellow')
 
 def init_args():
     params = ['-std=c++14', '-Wall', '-Wextra', '-pedantic', '-O2', '-Wshadow',
@@ -66,9 +71,14 @@ def check_source(cpp_file):
 def compile(cpp_file, out_file, params):
     os.makedirs(hidden_dir_name, exist_ok=True)
 
-    p = subprocess.run(
-        ['g++', '-fdiagnostics-format=json', cpp_file, '-o', out_file],
-        stderr=subprocess.PIPE)
+    try:
+        p = subprocess.run(
+            ['g++', '-fdiagnostics-format=json', cpp_file, '-o', out_file],
+            stderr=subprocess.PIPE)
+    except Exception:
+        print(p.stderr)
+
+        return -1
 
     print_gcc_msg(p.stderr.decode("utf-8"))
 
@@ -88,13 +98,11 @@ def main():
     if not compile(cpp_file, out_file, params):
         return
 
-    print("{}╔══════════════════════════════════════════════════════════════╗{}".format(bcolors.OKGREEN, bcolors.ENDC), file=sys.stderr)
+    print_info("╔══════════════════════════════════════════════════════════════╗", 'green')
 
     sucseed = execute(out_file)
 
-    print("", file=sys.stderr)
-
-    print("{}╚══════════════════════════════════════════════════════════════╝{}".format(bcolors.OKGREEN, bcolors.ENDC), file=sys.stderr)
+    print_info("\n╚══════════════════════════════════════════════════════════════╝", 'green')
 
     #printf "\e[32mExecution time: %s s\e[0m\n" $DIFF >&2
 
