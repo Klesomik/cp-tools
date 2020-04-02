@@ -8,15 +8,7 @@ import json
 
 from termcolor import cprint
 
-class bcolors:
-    HEADER    = '\033[95m'
-    OKBLUE    = '\033[94m'
-    OKGREEN   = '\033[32m'
-    WARNING   = '\033[93m'
-    FAIL      = '\033[91m'
-    ENDC      = '\033[0m'
-    BOLD      = '\033[1m'
-    UNDERLINE = '\033[4m'
+import signal
 
 hidden_dir_name = '.cpmcache'
 
@@ -73,11 +65,10 @@ def compile(cpp_file, out_file, params):
 
     try:
         p = subprocess.run(
-            ['g++', '-fdiagnostics-format=json', cpp_file, '-o', out_file],
+            ['g++', '-fdiagnostics-format=json', cpp_file, '-o', out_file] + params,
             stderr=subprocess.PIPE)
-    except Exception:
-        print(p.stderr)
-
+    except KeyboardInterrupt:
+        p.send_signal(signal.SIGINT)
         return -1
 
     print_gcc_msg(p.stderr.decode("utf-8"))
